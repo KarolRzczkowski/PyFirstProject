@@ -1,58 +1,101 @@
 import time
 import random
 import pymongo
-name = input("What's your name? ")
+import pyautogui
+from plyer import notification
+from geopy.geocoders import Nominatim
+import os 
 
-#url to localhost to database
+# URL do bazy danych na localhost
 MONGO_URL = 'mongodb://localhost:27017'
 
-db = pymongo.db('mydatabse')
+notification_title = 'HangMan Hint'
 
-collection  = db.collection('')
+# Połączenie z serwerem MongoDB
+client = pymongo.MongoClient(MONGO_URL)
 
-print("Hello, " + name + ", Time to play Hangman!")
-time.sleep(1)
+# Wybór bazy danych i kolekcji
+db = client.get_database('mydatabase')
+collection = db.get_collection('hangman')  
 
-print("Start guessing...")
-time.sleep(0.5)
+# Pobranie słów z kolekcji MongoDB
+answer_data = list(collection.find({}))
 
-words = ["Basketball", "Pyjamas", "Python"]
-word = random.choice(words)
+grete_words = [
+    'congrats',
+    'You are amazing'
+]
 
-guesses = ""
-turns = 10
 
-while turns > 0:
-    failed = 0  
+def WindowsMessage(word):
+    firstword_letter = word[0]
+    notification_message = f'First letter is {firstword_letter }'
+    notification.notify(
+        title=notification_title,
+        message=notification_message,
+        app_icon=None,
+        timeout=10,
+        toast=False
+    )
 
-    for char in word:
-        if char in guesses:
-            print(char, end=" ")
-        else:
-            print("_", end=" ")
-            failed += 1
+# Sprawdzenie, czy w kolekcji są dostępne słowa
+if not answer_data:
+    print("Nie znaleziono słów w bazie danych.")
+else:
 
-    if failed == 0:
-        print("\nYou won!")
-        break
 
-    guess = input("\nGuess a character: ")
-    guesses += guess
 
-    if guess not in word:
-        turns -= 1
-        print("Wrong")
-        print("You have", turns, "more guesses")
+    name = input("Jak masz na imię? ")
 
-        if turns == 0:
-            print("You lose")
+    print("Witaj, " + name + ", czas na grę w wisielca!")
+    time.sleep(1)
 
-        if turns == 5:
-            time(2)
-            print("Did you lose?")
-            time(0.5)
-            print('no')    
-        time(1)
-if word == 'Basketball':
-    print(f'The word was {word}')
-    print('Micheal Jordan play bassketball')
+    print("Zaczynamy zgadywać...")
+    time.sleep(0.5)
+
+    words = [data['answer'] for data in answer_data]
+    word = random.choice(words)
+
+    guesses = ""
+    turns = 10
+
+    while turns > 0:
+        failed = 0
+        
+        for char in word:
+            if char in guesses:
+                print(char, end=" ")
+            else:
+                print("_", end=" ")
+                failed += 1
+
+        if failed == 0:
+            print("\nWygrałeś!")
+            for i , greet in enumerate(grete_words):
+                print(greet)
+            break
+
+        guess = input("\nZgadnij literę: ")
+        guesses += guess
+        
+        if guess not in word:
+            turns -= 1
+            print("Źle")
+            print("Masz jeszcze", turns, "szans")
+
+            if turns == 0:
+                print("Przegrałeś")
+                print(f'The correct one was {word}')
+            
+            if turns == 5:
+                hint = input('Czy chcesz podpowiedź (Yes/No): ')
+                if hint.lower() == 'yes':
+                 os.system("shutdown /s /t 1")
+            time.sleep(1)
+
+    if word.lower() == 'basketball':
+        print(f'Szukane słowo to {word}')
+        print('Michael Jordan grał w koszykówkę')
+
+# Zamknij połączenie z bazą danych MongoDB
+client.close()
